@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单及退货订单数据分析报表</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.1/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: '微软雅黑', sans-serif;
+        }
+
+        #chart-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .chart {
+            width: 50%;
+            height: 400px; /* 添加高度 */
+        }
+
+        #detail-table {
+            width: 100%;
+        }
+
+        .filter {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">订单及退货订单数据分析报表</h1>
+        <div class="row">
+            <div class="col-md-3 filter">
+                <label for="start-date" class="form-label">开始日期</label>
+                <input type="date" id="start-date" class="form-control">
+            </div>
+            <div class="col-md-3 filter">
+                <label for="end-date" class="form-label">结束日期</label>
+                <input type="date" id="end-date" class="form-control">
+            </div>
+            <div class="col-md-3 filter">
+                <label for="order-type" class="form-label">订单类型</label>
+                <select id="order-type" class="form-control">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="col-md-3 filter">
+                <label for="customer-source" class="form-label">客户来源</label>
+                <select id="customer-source" class="form-control">
+                    <option value="">全部</option>
+                </select>
+            </div>
+        </div>
+        <div id="chart-container">
+            <div class="chart" id="bar-chart"></div>
+            <div class="chart" id="pie-chart"></div>
+        </div>
+        <div id="detail-table-container">
+            <h3 class="mt-4">订单明细信息</h3>
+            <table class="table table-striped" id="detail-table">
+                <thead>
+                    <tr>
+                        <th>订单编号</th>
+                        <th>订单日期</th>
+                        <th>商品SKU</th>
+                        <th>商品数量</th>
+                        <th>商品价格</th>
+                        <th>订单金额</th>
+                        <th>客户来源</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        // 获取订单类型下拉框选项
+        function getOrderTypeOptions() {
+            // 假设此处有接口可以获取订单类型，这里先注释掉
+            // fetch('/get_order_types')
+            //   .then(response => response.json())
+            //   .then(data => {
+            //         const orderTypeSelect = document.getElementById('order-type');
+            //         data.forEach(type => {
+            //             const option = document.createElement('option');
+            //             option.value = type.order_type_code;
+            //             option.textContent = type.order_type_name;
+            //             orderTypeSelect.appendChild(option);
+            //         });
+            //     });
+        }
+
+        // 获取客户来源下拉框选项
+        function getCustomerSourceOptions() {
+            // 假设此处有接口可以获取客户来源，这里先注释掉
+            // fetch('/get_customer_sources')
+            //   .then(response => response.json())
+            //   .then(data => {
+            //         const customerSourceSelect = document.getElementById('customer-source');
+            //         data.forEach(source => {
+            //             const option = document.createElement('option');
+            //             option.value = source.customer_source;
+            //             option.textContent = source.customer_source;
+            //             customerSourceSelect.appendChild(option);
+            //         });
+            //     });
+        }
+
+        // 绘制柱状图
+        function drawBarChart(data) {
+            console.log('Bar chart data:', data); // 添加日志输出
+            const barChart = echarts.init(document.getElementById('bar-chart'));
+            const months = data.map(item => item.month);
+            const amounts = data.map(item => item.total_amount);
+
+            const option = {
+                title: {
+                    text: '各月订单总金额'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type:'shadow'
+                    }
+                },
+                legend: {
+                    data: ['订单总金额'],
+                    right: '10%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: months
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [
+                    {
+                        name: '订单总金额',
+                        type: 'bar',
+                        data: amounts,
+                        itemStyle: {
+                            color: function (params) {
+                                // 蓝色系颜色深浅变化
+                                const colorList = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
+                                return colorList[params.dataIndex % colorList.length];
+                            }
+                        }
+                    }
+                ]
+            };
+
+            barChart.setOption(option);
+
+            barChart.on('mouseover', function (params) {
+                barChart.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: params.seriesIndex,
+                    dataIndex: params.dataIndex
+                });
+                const tip = `月份: ${params.name}<br>订单总金额: ${params.value}`;
+                barChart.showTooltip([{
+                    marker: 'circle',
+                    value: tip
+                }]);
+            });
+
+            barChart.on('mouseout', function (params) {
+                barChart.dispatchAction({
+                    type: 'downplay',
+                    seriesIndex: params.seriesIndex,
+                    dataIndex: params.dataIndex
+                });
+                barChart.hideTooltip();
+            });
+        }
+
+        // 绘制饼图
+        function drawPieChart(data) {
+            console.log('Pie chart data:', data); // 添加日志输出
+            const pieChart = echarts.init(document.getElementById('pie-chart'));
+            const orderTypes = data.map(item => item.order_type_name);
+            const ratios = data.map(item => item.ratio);
+
+            const option = {
+                title: {
+                    text: '不同订单类型的订单数量占比'
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: "{b}: {c} ({d}%)"
+                },
+                legend: {
+                    bottom: '0%',
+                    data: orderTypes
+                },
+                series: [
+                    {
+                        name: '订单类型占比',
+                        type: 'pie',
+                        radius: '50%',
+                        data: data.map(item => ({ name: item.order_type_name, value: item.ratio })),
+                        itemStyle: {
+                            emphasis: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        }
+                    }
+                ]
+            };
+
+            pieChart.setOption(option);
+
+            pieChart.on('mouseover', function (params) {
+                pieChart.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: params.seriesIndex,
+                    dataIndex: params.dataIndex
+                });
+                const tip = `订单类型: ${params.name}<br>占比: ${params.value}%`;
+                pieChart.showTooltip([{
+                    marker: 'circle',
+                    value: tip
+                }]);
+            });
+
+            pieChart.on('mouseout', function (params) {
+                pieChart.dispatchAction({
+                    type: 'downplay',
+                    seriesIndex: params.seriesIndex,
+                    dataIndex: params.dataIndex
+                });
+                pieChart.hideTooltip();
+            });
+        }
+
+        // 展示订单明细
+        function showOrderDetail(data) {
+            const tableBody = document.getElementById('detail-table').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = '';
+
+            data.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${order.order_num}</td>
+                    <td>${order.order_date}</td>
+                    <td>${order.item_sku}</td>
+                    <td>${order.item_qnty}</td>
+                    <td>${order.item_price}</td>
+                    <td>${order.order_value}</td>
+                    <td>${order.customer_source}</td>
+                `;
+
+                row.addEventListener('click', function () {
+                    // 弹出详细信息弹窗，这里先简单提示，后续可完善
+                    alert('点击查看详细订单信息，此处可进一步实现详细信息展示');
+                });
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        // 获取数据并渲染图表和表格
+        // 替换原fetchData函数
+        function fetchData() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const orderType = document.getElementById('order-type').value;
+            const customerSource = document.getElementById('customer-source').value;
+
+            const baseUrl = 'http://localhost:5000';
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (orderType) params.append('order_type', orderType);
+            if (customerSource) params.append('customer_source', customerSource);
+
+            const urls = [
+                `${baseUrl}/get_monthly_order_amount?${params}`,
+                `${baseUrl}/get_order_type_ratio?${params}`,
+                `${baseUrl}/get_order_detail?${params}`
+            ];
+
+            Promise.all(urls.map(url =>
+                fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+            ))
+            .then(data => {
+                console.log('Fetched data:', data); // 添加日志输出
+                drawBarChart(data[0]);
+                drawPieChart(data[1]);
+                showOrderDetail(data[2]);
+            })
+            .catch(error => {
+                console.error('获取数据失败:', error);
+                alert(`获取数据失败: ${error.message}`);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // getOrderTypeOptions();
+            // getCustomerSourceOptions();
+            const filterButton = document.createElement('button');
+            filterButton.textContent = '过滤';
+            filterButton.classList.add('btn', 'btn-primary');
+            filterButton.addEventListener('click', fetchData);
+            const filterDiv = document.querySelector('.filter:last-child');
+            filterDiv.appendChild(filterButton);
+
+            fetchData();
+        });
+    </script>
+</body>
+
+</html>
